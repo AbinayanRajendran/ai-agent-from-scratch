@@ -1,15 +1,47 @@
 import os
 from google import genai
 
+# The client is created ONCE, here at the top, and kept in a variable.
+# If it is not stored (e.g. a one-liner like genai.Client(...).models.generate_content(...)),
+# Python garbage-collects it and closes its connection, and you get:
+#   RuntimeError: Cannot send a request, as the client has been closed
+# The API key comes from the GEMINI_API_KEY environment variable and is NEVER
+# written in code, so it can't leak into git.
 client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
+# call_llm wraps EVERY LLM call. The rest of the agent only ever calls call_llm,
+# so it never knows which provider is behind it. That makes switching providers
+# easy, and retry/fallback logic will live here later.
 def call_llm(prompt):
     response = client.models.generate_content(
+        # The model is a PINNED version, not a "-latest" alias, so Google can't
+        # silently swap the model under me.
+        # gemini-3.8-flash returned 503 (high demand), so I use gemini-3.5-flash.
+        # Fallback order: gemini-3.5-flash -> gemini-2.5-flash.
         model="gemini-3.5-flash",
-        contents=prompt,
+        contents=history,
     )
+    # Shows the token counts Google bills for this call (input, output, thinking).
+    print(response.usage_metadata)
     return response.text
 
 # 3. the two-call experiment
-print(call_llm("My name is Kavi. Remember it."))
-print(call_llm("What is my name?"))
+# These two lines proved the LLM is STATELESS: each call contains ONLY what I send.
+# Call 1 ("My name is Kavi") got "Got it, Kavi!", but call 2 ("What is my name?")
+# said it didn't know, because call 2 never saw call 1. "Got it" was just generated
+# text; nothing was stored.
+#print(call_llm("My name is Kavi. Remember it."))
+#print(call_llm("What is my name?"))
+
+# 3. the experiment, with memory
+# A list written alone on a line does nothing. It must be stored in a variable
+# (history) and grown with .append(). history is MY Python variable, not a field.
+history = []                     # start: 0 turns
+
+# "role", "parts" and "text" are FIXED field names Gemini requires, and so are the
+# role values "user" / "model". Only the message text is my own data.
+history.append({"role": "user", "parts": [{"text": "My name is Kavi. Remember it."}]})
+print(len(history))              # should print 1
+
+reply = call_llm(history)        # send ALL turns so far
+print(reply)
