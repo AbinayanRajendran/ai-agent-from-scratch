@@ -40,3 +40,15 @@
 
 ## Next
 - Steps 2 & 3: append the model reply to history, then ask "What is my name?" with full history; check prompt_token_count ≈ 41.
+
+## Step 2 — adding the model's reply to history
+- Working line: history.append({"role": "model", "parts": [{"text": reply}]})
+- Mistakes I made and what they taught me:
+  1. history = reply -> replaced the list with a string; len gave 62 (characters). = reassigns, .append() adds.
+  2. "role": user (no quotes) -> NameError: Python looks for a variable called user.
+  3. "text": "reply" (with quotes) -> would store the literal word "reply", and len would still say 2 — silent wrong answer.
+  4. role "user" for Gemini's text -> model would think I said its words.
+- Rule: for every value ask "fixed label or my changing data?" Fixed label -> quotes. Data in a variable -> no quotes.
+- Verification habit: print the count AND print the contents. A correct count doesn't prove correct data.
+- Same input, different runs: reply 25/21/22 tokens, thinking 239/293/133 tokens. LLMs are not deterministic, and cost per call varies even for identical input.
+- Next: Step 3 — append "What is my name?", call with full history, check the model now answers "Kavi" and prompt_token_count ≈ turn1 + reply + question.

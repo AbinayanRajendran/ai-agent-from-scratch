@@ -45,3 +45,20 @@ print(len(history))              # should print 1
 
 reply = call_llm(history)        # send ALL turns so far
 print(reply)
+
+# Step 2: add the model's OWN reply to history as a "model" turn, so on the next
+# call the model can see what it said before. This is what turns separate calls
+# into a conversation.
+# - .append() keeps the list and adds to the end. "history = reply" would REPLACE
+#   the list with a string (I tried it: len printed 62 = characters, not turns,
+#   a silent wrong answer with no error).
+# - Quotes rule: WITH quotes = literal fixed text ("role", "text", "user", "model").
+#   WITHOUT quotes = look up a variable (reply). Writing user without quotes gives
+#   NameError. Writing "reply" with quotes would send the literal word "reply".
+# - The role must be "model" because Gemini wrote that text; labelling it "user"
+#   would make the model think I said it.
+history.append({"role": "model", "parts": [{"text": reply}]})
+print(len(history))   # checks the COUNT (should be 2)
+# Checks the CONTENTS: the count alone can't catch a wrong role or the literal
+# word "reply".
+print(history)
