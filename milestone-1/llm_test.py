@@ -12,6 +12,8 @@ client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 # call_llm wraps EVERY LLM call. The rest of the agent only ever calls call_llm,
 # so it never knows which provider is behind it. That makes switching providers
 # easy, and retry/fallback logic will live here later.
+# prompt = the full history list (all turns), not a single message.
+# The function must use its OWN input (prompt), never reach outside for a global variable.
 def call_llm(prompt):
     response = client.models.generate_content(
         # The model is a PINNED version, not a "-latest" alias, so Google can't
@@ -19,7 +21,7 @@ def call_llm(prompt):
         # gemini-3.8-flash returned 503 (high demand), so I use gemini-3.5-flash.
         # Fallback order: gemini-3.5-flash -> gemini-2.5-flash.
         model="gemini-3.5-flash",
-        contents=history,
+        contents=prompt,
     )
     # Shows the token counts Google bills for this call (input, output, thinking).
     print(response.usage_metadata)
@@ -62,3 +64,11 @@ print(len(history))   # checks the COUNT (should be 2)
 # Checks the CONTENTS: the count alone can't catch a wrong role or the literal
 # word "reply".
 print(history)
+
+# Step 3: ask the follow-up. Same pattern as step 1: a "user" turn appended to
+# history, then the WHOLE history is sent, so the model can see "Kavi" from turn 1.
+history.append({"role": "user", "parts": [{"text": "What is my name?"}]})
+print(len(history))   # should print 3
+
+reply2 = call_llm(history)   # stored in its own variable so `reply` isn't overwritten
+print(reply2)

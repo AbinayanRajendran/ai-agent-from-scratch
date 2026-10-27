@@ -52,3 +52,13 @@
 - Verification habit: print the count AND print the contents. A correct count doesn't prove correct data.
 - Same input, different runs: reply 25/21/22 tokens, thinking 239/293/133 tokens. LLMs are not deterministic, and cost per call varies even for identical input.
 - Next: Step 3 — append "What is my name?", call with full history, check the model now answers "Kavi" and prompt_token_count ≈ turn1 + reply + question.
+
+## Step 3 — the model remembers + a hidden bug
+- Step 3 appended "What is my name?" as a user turn and sent the whole 3-turn history -> model answered "Your name is Kavi!"
+- Token check confirmed the rule: 2nd call input = turn 1 + reply + question (e.g. 10 + 20 + 6 ≈ 37, extra 1 = formatting).
+- Bug found: call_llm(prompt) received the list as `prompt` but used `contents=history` — it ignored its own input and grabbed the global variable. It only worked by luck.
+- Why it matters: with several users/conversations, the function would silently send the wrong conversation — mixed-up private data, no error.
+- Fix: contents=prompt. Rule: a function uses its own inputs, not outside variables.
+- `contents=` is NOT a variable — it's the name of an input slot on Google's generate_content function (fixed label, my value). `=` inside a call's brackets fills a slot; `=` on its own line creates a variable.
+- Demo that proved it: greet(name) returning "Hello " + person printed "Hello Kavi" for greet("Arun"). The function received Arun but never read it.
+- Memory half of Part 2 DONE. Next: build the loop (LLM -> JSON -> tool -> observation -> repeat).
